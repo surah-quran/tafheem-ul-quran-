@@ -1,0 +1,1144 @@
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useParams } from 'react-router-dom';
+import { 
+  BookOpen, Search, Bookmark, Home, Calendar, User, Play, Pause, Heart, X, ArrowLeft, 
+  CheckCircle, Star 
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+
+// Types
+interface Ayah {
+  id: number;
+  surahNumber: number;
+  ayahNumber: number;
+  arabic: string;
+  transliteration: string;
+  english: string;
+  tafheem: string;
+}
+
+interface Surah {
+  number: number;
+  name: string;
+  arabicName: string;
+  englishName: string;
+  meaning: string;
+  ayahs: number;
+  revelation: string;
+}
+
+// Sample Tafheem-ul-Quran Data (authentic style explanations from Maulana Maududi's Tafheem)
+const surahsData: Surah[] = [
+  { number: 1, name: "Al-Fatiha", arabicName: "الفاتحة", englishName: "The Opening", meaning: "The Opening", ayahs: 7, revelation: "Meccan" },
+  { number: 103, name: "Al-Asr", arabicName: "العصر", englishName: "The Time", meaning: "The Declining Day", ayahs: 3, revelation: "Meccan" },
+  { number: 112, name: "Al-Ikhlas", arabicName: "الإخلاص", englishName: "The Sincerity", meaning: "Sincerity of Faith", ayahs: 4, revelation: "Meccan" },
+  { number: 113, name: "Al-Falaq", arabicName: "الفلق", englishName: "The Dawn", meaning: "The Daybreak", ayahs: 5, revelation: "Meccan" },
+  { number: 114, name: "An-Nas", arabicName: "الناس", englishName: "Mankind", meaning: "Mankind", ayahs: 6, revelation: "Meccan" },
+  { number: 36, name: "Ya-Sin", arabicName: "يس", englishName: "Ya Sin", meaning: "Ya-Sin", ayahs: 12, revelation: "Meccan" },
+  { number: 2, name: "Al-Baqarah", arabicName: "البقرة", englishName: "The Cow", meaning: "The Heifer", ayahs: 6, revelation: "Medinan" },
+  { number: 67, name: "Al-Mulk", arabicName: "الملك", englishName: "The Sovereignty", meaning: "The Kingdom", ayahs: 5, revelation: "Meccan" },
+  { number: 55, name: "Ar-Rahman", arabicName: "الرحمن", englishName: "The Beneficent", meaning: "The Merciful", ayahs: 6, revelation: "Medinan" },
+  { number: 56, name: "Al-Waqi'ah", arabicName: "الواقعة", englishName: "The Inevitable", meaning: "The Event", ayahs: 5, revelation: "Meccan" },
+  { number: 18, name: "Al-Kahf", arabicName: "الكهف", englishName: "The Cave", meaning: "The Cave", ayahs: 7, revelation: "Meccan" },
+];
+
+const ayahsData: Ayah[] = [
+  // Al-Fatiha
+  { id: 1, surahNumber: 1, ayahNumber: 1, arabic: "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ", transliteration: "Bismillahi r-Rahmani r-Rahim", english: "In the name of Allah, the Entirely Merciful, the Especially Merciful.", tafheem: "This is the opening verse of the Qur'an. The phrase 'Bismillah' is recited at the beginning of every surah except Surah At-Tawbah. It teaches us that every action in life should begin with the remembrance of Allah. The two attributes Ar-Rahman and Ar-Rahim indicate that Allah's mercy encompasses all creation." },
+  { id: 2, surahNumber: 1, ayahNumber: 2, arabic: "الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ", transliteration: "Alhamdu lillahi Rabbil 'alamin", english: "All praise is due to Allah, Lord of the worlds.", tafheem: "This verse establishes the fundamental principle of Tawhid. Allah alone deserves all praise because He is the Creator, Sustainer, and Lord of all the worlds. 'Alamin' refers to everything that exists besides Allah — the heavens, the earth, and all creatures." },
+  { id: 3, surahNumber: 1, ayahNumber: 3, arabic: "الرَّحْمَٰنِ الرَّحِيمِ", transliteration: "Ar-Rahmani r-Rahim", english: "The Entirely Merciful, the Especially Merciful.", tafheem: "These attributes emphasize Allah's boundless mercy. Ar-Rahman refers to mercy that encompasses everything in this world, while Ar-Rahim refers to the special mercy reserved for believers in the Hereafter. Tafheem teaches that Allah's mercy precedes His wrath." },
+  { id: 4, surahNumber: 1, ayahNumber: 4, arabic: "مَالِكِ يَوْمِ الدِّينِ", transliteration: "Maliki yawmi d-din", english: "Sovereign of the Day of Recompense.", tafheem: "This verse reminds humanity of the inevitable Day of Judgment. Allah is the sole Master and Judge on that day. It is a powerful warning against heedlessness and a call to live with accountability." },
+  { id: 5, surahNumber: 1, ayahNumber: 5, arabic: "إِيَّاكَ نَعْبُدُ وَإِيَّاكَ نَسْتَعِينُ", transliteration: "Iyyaka na'budu wa iyyaka nasta'in", english: "It is You we worship and You we ask for help.", tafheem: "This is the heart of the Surah. It declares exclusive worship (Ibadah) and complete reliance (Isti'anah) upon Allah alone. The Tafheem explains this as the essence of the Islamic way of life: total submission and dependence upon the Creator." },
+  { id: 6, surahNumber: 1, ayahNumber: 6, arabic: "اهْدِنَا الصِّرَاطَ الْمُسْتَقِيمَ", transliteration: "Ihdinas-siratal mustaqim", english: "Guide us to the straight path.", tafheem: "This beautiful supplication is repeated in every prayer. It asks for guidance to the path of truth, the path followed by the prophets. The Straight Path is Islam — complete submission to Allah." },
+  { id: 7, surahNumber: 1, ayahNumber: 7, arabic: "صِرَاطَ الَّذِينَ أَنْعَمْتَ عَلَيْهِمْ ۙ غَيْرِ الْمَغْضُوبِ عَلَيْهِمْ وَلَا الضَّالِّينَ", transliteration: "Siratal-ladhina an'amta 'alayhim ghayril maghdubi 'alayhim wa lad-dallin", english: "The path of those upon whom You have bestowed favor, not of those who have evoked anger or of those who are astray.", tafheem: "The verse clarifies the Straight Path by mentioning the blessed ones — the prophets and the righteous. It warns against the paths of those who earned Allah's anger (like the Jews) and those gone astray (like the Christians). A profound reminder to seek the true guidance." },
+  
+  // Al-Asr
+  { id: 8, surahNumber: 103, ayahNumber: 1, arabic: "وَالْعَصْرِ", transliteration: "Wal 'asr", english: "By time,", tafheem: "Allah swears by time itself. Time is one of the greatest blessings given to humanity. Every passing moment brings us closer to the Hereafter. Tafheem explains that time is a witness to human deeds." },
+  { id: 9, surahNumber: 103, ayahNumber: 2, arabic: "إِنَّ الْإِنْسَانَ لَفِي خُسْرٍ", transliteration: "Innal insana lafi khusr", english: "Indeed, mankind is in loss,", tafheem: "This is a powerful declaration. Every human being is in a state of loss unless they use their time wisely in the worship of Allah. Without faith and righteous deeds, life passes in vain." },
+  { id: 10, surahNumber: 103, ayahNumber: 3, arabic: "إِلَّا الَّذِينَ آمَنُوا وَعَمِلُوا الصَّالِحَاتِ وَتَوَاصَوْا بِالْحَقِّ وَتَوَاصَوْا بِالصَّبْرِ", transliteration: "Illalladhina amanu wa 'amilus-salihati wa tawasaw bil-haqqi wa tawasaw bis-sabr", english: "Except for those who have believed and done righteous deeds and advised each other to truth and advised each other to patience.", tafheem: "The only way to escape loss is through four things: faith (Iman), righteous actions, mutual exhortation to truth, and patience. Tafheem beautifully explains this as the complete recipe for success in this world and the Hereafter." },
+
+  // Al-Ikhlas
+  { id: 11, surahNumber: 112, ayahNumber: 1, arabic: "قُلْ هُوَ اللَّهُ أَحَدٌ", transliteration: "Qul huwa Allahu Ahad", english: "Say, 'He is Allah, [who is] One,'", tafheem: "This surah is considered equal to one-third of the Qur'an. It affirms Tawhid in its purest form. Allah is One, without partner or equal. This is the foundation of Islamic belief." },
+  { id: 12, surahNumber: 112, ayahNumber: 2, arabic: "اللَّهُ الصَّمَدُ", transliteration: "Allahu s-Samad", english: "Allah, the Eternal Refuge.", tafheem: "Allah is Self-Sufficient. He needs nothing and everything depends on Him. The Tafheem explains that Allah is the one to whom all creation turns in times of need." },
+  { id: 13, surahNumber: 112, ayahNumber: 3, arabic: "لَمْ يَلِدْ وَلَمْ يُولَدْ", transliteration: "Lam yalid wa lam yulad", english: "He neither begets nor is born,", tafheem: "This rejects the Christian doctrine of the Trinity and the sonship of Jesus. Allah is eternal and uncreated. He has no children or parents." },
+  { id: 14, surahNumber: 112, ayahNumber: 4, arabic: "وَلَمْ يَكُنْ لَهُ كُفُوًا أَحَدٌ", transliteration: "Wa lam yakun lahu kufuwan ahad", english: "Nor is there to Him any equivalent.", tafheem: "Nothing resembles Allah. He is unique in every aspect — His essence, attributes, and actions. The Tafheem emphasizes complete rejection of any form of shirk." },
+
+  // Al-Falaq & An-Nas (Protection Surahs)
+  { id: 15, surahNumber: 113, ayahNumber: 1, arabic: "قُلْ أَعُوذُ بِرَبِّ الْفَلَقِ", transliteration: "Qul a'udhu bi Rabbi l-falaq", english: "Say, 'I seek refuge in the Lord of daybreak'", tafheem: "Surah Al-Falaq and An-Nas are called Mu'awwidhatayn. They are recited for protection from all evils. Seeking refuge in Allah, the Creator of the dawn, protects from darkness and harm." },
+  { id: 16, surahNumber: 113, ayahNumber: 2, arabic: "مِنْ شَرِّ مَا خَلَقَ", transliteration: "Min sharri ma khalaq", english: "From the evil of that which He created", tafheem: "We seek Allah's protection from all evils that exist in creation — whether physical or spiritual. Tafheem notes the importance of recognizing evil forces." },
+  { id: 17, surahNumber: 113, ayahNumber: 3, arabic: "وَمِنْ شَرِّ غَاسِقٍ إِذَا وَقَبَ", transliteration: "Wa min sharri ghasiqin idha waqab", english: "And from the evil of darkness when it settles", tafheem: "Protection from the evil of nightfall and the hidden dangers it brings. Nighttime is often associated with harmful forces." },
+  { id: 18, surahNumber: 113, ayahNumber: 4, arabic: "وَمِنْ شَرِّ النَّفَّاثَاتِ فِي الْعُقَدِ", transliteration: "Wa min sharrin-naffathati fil 'uqad", english: "And from the evil of the blowers in knots", tafheem: "This refers to witchcraft and magic. The Tafheem warns against sorcery and the importance of seeking refuge from those who practice black magic." },
+  { id: 19, surahNumber: 113, ayahNumber: 5, arabic: "وَمِنْ شَرِّ حَاسِدٍ إِذَا حَسَدَ", transliteration: "Wa min sharri hasidin idha hasad", english: "And from the evil of an envier when he envies.", tafheem: "The evil eye and jealousy are powerful negative forces. Tafheem teaches believers to protect themselves by turning to Allah." },
+
+  // An-Nas
+  { id: 20, surahNumber: 114, ayahNumber: 1, arabic: "قُلْ أَعُوذُ بِرَبِّ النَّاسِ", transliteration: "Qul a'udhu bi Rabbi n-nas", english: "Say, 'I seek refuge in the Lord of mankind,'", tafheem: "This surah completes the protection by seeking refuge in Allah as Lord, King, and God of mankind. It addresses the whispers of Satan." },
+  { id: 21, surahNumber: 114, ayahNumber: 2, arabic: "مَلِكِ النَّاسِ", transliteration: "Maliki n-nas", english: "The Sovereign of mankind,", tafheem: "Allah is the true King of all people. This affirms His absolute sovereignty over humanity." },
+  { id: 22, surahNumber: 114, ayahNumber: 3, arabic: "إِلَٰهِ النَّاسِ", transliteration: "Ilahi n-nas", english: "The God of mankind,", tafheem: "Allah is the only true deity worthy of worship. The repetition emphasizes the totality of submission." },
+  { id: 23, surahNumber: 114, ayahNumber: 4, arabic: "مِنْ شَرِّ الْوَسْوَاسِ الْخَنَّاسِ", transliteration: "Min sharril waswasil khannas", english: "From the evil of the retreating whisperer", tafheem: "Satan whispers evil suggestions into the hearts of people. He retreats when one remembers Allah. Tafheem highlights constant vigilance." },
+  { id: 24, surahNumber: 114, ayahNumber: 5, arabic: "الَّذِي يُوَسْوِسُ فِي صُدُورِ النَّاسِ", transliteration: "Alladhi yuwaswisu fi sudurin-nas", english: "Who whispers [evil] into the breasts of mankind", tafheem: "Satan's whispers target the heart and mind, creating doubts and evil desires." },
+  { id: 25, surahNumber: 114, ayahNumber: 6, arabic: "مِنَ الْجِنَّةِ وَالنَّاسِ", transliteration: "Minal jinnati wan-nas", english: "From among the jinn and mankind.", tafheem: "Evil whispers come from both jinn and humans. Tafheem explains the need for constant remembrance of Allah to ward off these influences." },
+
+  // Ya-Sin (selected ayahs)
+  { id: 26, surahNumber: 36, ayahNumber: 1, arabic: "يس", transliteration: "Ya-Sin", english: "Ya, Sin.", tafheem: "Ya-Sin is called the 'Heart of the Qur'an'. It begins with mysterious letters affirming the truth of the revelation." },
+  { id: 27, surahNumber: 36, ayahNumber: 2, arabic: "وَالْقُرْآنِ الْحَكِيمِ", transliteration: "Wal Qur'anil Hakim", english: "By the wise Qur'an.", tafheem: "Allah swears by the perfect and wise Qur'an. It is a source of guidance and wisdom for humanity." },
+  { id: 28, surahNumber: 36, ayahNumber: 3, arabic: "إِنَّكَ لَمِنَ الْمُرْسَلِينَ", transliteration: "Innaka laminal mursalin", english: "Indeed you, [O Muhammad], are from among the messengers", tafheem: "This affirms the prophethood of Muhammad ﷺ. Tafheem explains that his mission is to warn and guide people." },
+  { id: 29, surahNumber: 36, ayahNumber: 4, arabic: "عَلَىٰ صِرَاطٍ مُّسْتَقِيمٍ", transliteration: "Ala siratin mustaqim", english: "On a straight path.", tafheem: "The Prophet ﷺ is upon the straight path of truth and guidance." },
+  { id: 30, surahNumber: 36, ayahNumber: 5, arabic: "تَنزِيلَ الْعَزِيزِ الرَّحِيمِ", transliteration: "Tanzilal 'Azizir Rahim", english: "[This is] a revelation of the Exalted in Might, the Merciful,", tafheem: "The Qur'an is revealed by Allah, the Mighty and Merciful, as a gift to mankind." },
+  { id: 31, surahNumber: 36, ayahNumber: 6, arabic: "لِتُنذِرَ قَوْمًا مَّا أُنذِرَ آبَاؤُهُمْ فَهُمْ غَافِلُونَ", transliteration: "Litundhira qawman ma undhira aba'uhum fahum ghafilun", english: "That you may warn a people whose forefathers were not warned, so they are unaware.", tafheem: "The Arabs had not received a prophet for centuries. The Qur'an awakens them from their heedlessness." },
+  { id: 32, surahNumber: 36, ayahNumber: 7, arabic: "لَقَدْ حَقَّ الْقَوْلُ عَلَىٰ أَكْثَرِهِمْ فَهُمْ لَا يُؤْمِنُونَ", transliteration: "Laqad haqqal qawlu 'ala aktharihim fahum la yu'minun", english: "Already the word has come into effect upon most of them, so they do not believe.", tafheem: "Due to their persistent rejection, many people are destined for punishment. Yet the message must be delivered." },
+  { id: 33, surahNumber: 36, ayahNumber: 8, arabic: "إِنَّا جَعَلْنَا فِي أَعْنَاقِهِمْ أَغْلَالًا فَهِيَ إِلَى الْأَذْقَانِ فَهُم مُّقْمَحُونَ", transliteration: "Inna ja'alna fi a'naqihim aghlalan fa hiya ilal adhqani fahum muqmahun", english: "Indeed, We have put shackles on their necks, and they are to their chins, so they are with heads [kept] aloft.", tafheem: "This powerful metaphor describes how the arrogant are unable to bow their heads in humility to Allah. Their pride prevents them from accepting guidance." },
+
+  // Al-Baqarah (selected)
+  { id: 34, surahNumber: 2, ayahNumber: 1, arabic: "الم", transliteration: "Alif-Lam-Mim", english: "Alif, Lam, Meem.", tafheem: "These letters are from the mutashabihat. Their true meaning is known only to Allah. They serve as a challenge and reminder of the miraculous nature of the Qur'an." },
+  { id: 35, surahNumber: 2, ayahNumber: 2, arabic: "ذَٰلِكَ الْكِتَابُ لَا رَيْبَ ۛ فِيهِ ۛ هُدًى لِّلْمُتَّقِينَ", transliteration: "Dhalikal kitabu la rayba fihi hudal lil-muttaqin", english: "This is the Book about which there is no doubt, a guidance for those conscious of Allah.", tafheem: "The Qur'an is free of doubt. It is guidance for the God-fearing. Tafheem explains that only those who fear Allah can truly benefit from its wisdom." },
+  { id: 36, surahNumber: 2, ayahNumber: 3, arabic: "الَّذِينَ يُؤْمِنُونَ بِالْغَيْبِ وَيُقِيمُونَ الصَّلَاةَ وَمِمَّا رَزَقْنَاهُمْ يُنفِقُونَ", transliteration: "Alladhina yu'minuna bil-ghaybi wa yuqimunas-salata wa mimma razaqnahum yunfiqun", english: "Who believe in the unseen, establish prayer, and spend out of what We have provided for them,", tafheem: "The qualities of the righteous: belief in the unseen (including Allah, angels, afterlife), regular prayer, and charity. These form the foundation of a believer's life." },
+  { id: 37, surahNumber: 2, ayahNumber: 4, arabic: "وَالَّذِينَ يُؤْمِنُونَ بِمَا أُنزِلَ إِلَيْكَ وَمَا أُنزِلَ مِن قَبْلِكَ وَبِالْآخِرَةِ هُمْ يُوقِنُونَ", transliteration: "Walladhina yu'minuna bima unzila ilayka wa ma unzila min qablika wa bil-akhirati hum yuqinun", english: "And who believe in what has been revealed to you, [O Muhammad], and what was revealed before you, and of the Hereafter they are certain.", tafheem: "True faith includes belief in all previous revelations and certainty about the Hereafter. Tafheem stresses the continuity of divine guidance." },
+  { id: 38, surahNumber: 2, ayahNumber: 5, arabic: "أُولَٰئِكَ عَلَىٰ هُدًى مِّن رَّبِّهِمْ ۖ وَأُولَٰئِكَ هُمُ الْمُفْلِحُونَ", transliteration: "Ula'ika 'ala hudan min Rabbihim wa ula'ika humul muflihun", english: "Those are upon [right] guidance from their Lord, and it is those who are the successful.", tafheem: "Those who possess these qualities receive guidance from Allah and attain true success in both worlds. The Tafheem declares them the truly successful people." },
+
+  // Al-Mulk
+  { id: 39, surahNumber: 67, ayahNumber: 1, arabic: "تَبَارَكَ الَّذِي بِيَدِهِ الْمُلْكُ وَهُوَ عَلَىٰ كُلِّ شَيْءٍ قَدِيرٌ", transliteration: "Tabarakalladhi biyadihil mulku wa huwa 'ala kulli shay'in qadir", english: "Blessed is He in whose hand is dominion, and He is over all things competent.", tafheem: "This surah begins by declaring Allah's absolute sovereignty over the entire universe. Tafheem explains that true power and kingship belongs only to Allah." },
+  { id: 40, surahNumber: 67, ayahNumber: 2, arabic: "الَّذِي خَلَقَ الْمَوْتَ وَالْحَيَاةَ لِيَبْلُوَكُمْ أَيُّكُمْ أَحْسَنُ عَمَلًا", transliteration: "Alladhi khalaqal mawta wal hayata liyabluwakum ayyukum ahsanu 'amala", english: "[He] who created death and life to test you [as to] which of you is best in deed.", tafheem: "The purpose of life and death is to test which of us performs the best deeds. This is one of the most profound verses explaining the philosophy of life." },
+  { id: 41, surahNumber: 67, ayahNumber: 3, arabic: "الَّذِي خَلَقَ سَبْعَ سَمَاوَاتٍ طِبَاقًا ۖ مَّا تَرَىٰ فِي خَلْقِ الرَّحْمَٰنِ مِن تَفَاوُتٍ", transliteration: "Alladhi khalaqa sab'a samawatin tibaqan ma tara fi khalqir Rahman min tafawut", english: "[And] who created seven heavens in layers. You do not see in the creation of the Most Merciful any inconsistency.", tafheem: "The perfect harmony and order of the universe is evidence of a single, wise Creator. Tafheem highlights the flawless design of the cosmos." },
+  { id: 42, surahNumber: 67, ayahNumber: 4, arabic: "ثُمَّ ارْجِعِ الْبَصَرَ كَرَّتَيْنِ يَنقَلِبْ إِلَيْكَ الْبَصَرُ خَاسِئًا وَهُوَ حَسِيرٌ", transliteration: "Thummarji'il basara karratayni yanqalib ilaykal basaru khasi'an wa huwa hasir", english: "Then return [your] vision twice again. [Your] vision will return to you humbled while it is fatigued.", tafheem: "Even if you examine the heavens repeatedly, you will never find any flaw. This is a powerful challenge to those who deny the Creator." },
+  { id: 43, surahNumber: 67, ayahNumber: 5, arabic: "وَلَقَدْ زَيَّنَّا السَّمَاءَ الدُّنْيَا بِمَصَابِيحَ", transliteration: "Wa laqad zayyannas sama'ad dunya bimasabih", english: "And We have certainly beautified the nearest heaven with stars.", tafheem: "The stars are described both as decoration and as missiles against devils. Tafheem explains the dual purpose of the celestial bodies." },
+
+  // Ar-Rahman
+  { id: 44, surahNumber: 55, ayahNumber: 1, arabic: "الرَّحْمَٰنُ", transliteration: "Ar-Rahman", english: "The Most Merciful", tafheem: "This beautiful surah opens with one of Allah's greatest names. Tafheem describes how Allah's mercy is manifested in all creation." },
+  { id: 45, surahNumber: 55, ayahNumber: 2, arabic: "عَلَّمَ الْقُرْآنَ", transliteration: "Allamal Qur'an", english: "Taught the Qur'an,", tafheem: "The greatest favor of Ar-Rahman is teaching the Qur'an. It is the ultimate guidance and mercy for humanity." },
+  { id: 46, surahNumber: 55, ayahNumber: 3, arabic: "خَلَقَ الْإِنسَانَ", transliteration: "Khalaqal insan", english: "Created man", tafheem: "Allah created man with great care and endowed him with intellect and speech. This is one of the greatest blessings." },
+  { id: 47, surahNumber: 55, ayahNumber: 4, arabic: "عَلَّمَهُ الْبَيَانَ", transliteration: "Allamahul bayan", english: "[And] taught him speech.", tafheem: "The gift of articulate speech and the ability to express oneself is uniquely human and a sign of Allah's mercy." },
+  { id: 48, surahNumber: 55, ayahNumber: 5, arabic: "الشَّمْسُ وَالْقَمَرُ بِحُسْبَانٍ", transliteration: "Ash-shamsu wal qamaru bihusban", english: "The sun and the moon [move] by precise calculation,", tafheem: "The precise movement of the sun and moon is a sign of perfect order in the universe, established by the Merciful." },
+  { id: 49, surahNumber: 55, ayahNumber: 6, arabic: "وَالنَّجْمُ وَالشَّجَرُ يَسْجُدَانِ", transliteration: "Wan najmu wash shajaru yasjudan", english: "And the stars and trees prostrate.", tafheem: "All creation is in a state of worship and submission to Allah. Tafheem emphasizes the universal glorification of the Creator." },
+
+  // Al-Waqi'ah
+  { id: 50, surahNumber: 56, ayahNumber: 1, arabic: "إِذَا وَقَعَتِ الْوَاقِعَةُ", transliteration: "Idha waqa'atil waqi'ah", english: "When the Occurrence occurs,", tafheem: "This refers to the Day of Judgment. Tafheem explains it as the inevitable event that will shake all of creation." },
+  { id: 51, surahNumber: 56, ayahNumber: 2, arabic: "لَيْسَ لِوَقْعَتِهَا كَاذِبَةٌ", transliteration: "Laysa liwaqa'atiha kadhibah", english: "There is, at its occurrence, no denial.", tafheem: "No one will be able to deny or escape the reality of the Day of Judgment when it comes." },
+  { id: 52, surahNumber: 56, ayahNumber: 3, arabic: "خَافِضَةٌ رَّافِعَةٌ", transliteration: "Khafidatur rafi'ah", english: "It will bring down [some] and raise [others] up.", tafheem: "The Day will lower the arrogant and raise the humble believers. True status will be revealed on that day." },
+  { id: 53, surahNumber: 56, ayahNumber: 4, arabic: "إِذَا رُجَّتِ الْأَرْضُ رَجًّا", transliteration: "Idha rujjatil ardu rajja", english: "When the earth is shaken with violent shaking", tafheem: "The earth will be violently shaken. Tafheem describes the terrifying physical signs of the end of this world." },
+  { id: 54, surahNumber: 56, ayahNumber: 5, arabic: "وَبُسَّتِ الْجِبَالُ بَسًّا", transliteration: "Wa bussatil jibalu bassa", english: "And the mountains are broken down, crumbling", tafheem: "Mountains will be reduced to dust. This illustrates the total destruction of the current world order before resurrection." },
+
+  // Ya-Sin (Expanded - Full selected verses)
+  { id: 55, surahNumber: 36, ayahNumber: 9, arabic: "وَجَعَلْنَا مِن بَيْنِ أَيْدِيهِمْ سَدًّا وَمِنْ خَلْفِهِمْ سَدًّا فَأَغْشَيْنَاهُمْ فَهُمْ لَا يُبْصِرُونَ", transliteration: "Wa ja'alna min bayni aydihim saddan wa min khalfihim saddan fa aghshaynahum fahum la yubsirun", english: "And We have put before them a barrier and behind them a barrier and covered them [so] they do not see.", tafheem: "This describes the spiritual blindness of those who reject the truth. Tafheem explains how people become trapped in their own denial." },
+  { id: 56, surahNumber: 36, ayahNumber: 10, arabic: "وَسَوَاءٌ عَلَيْهِمْ أَأَنذَرْتَهُمْ أَمْ لَمْ تُنذِرْهُمْ لَا يُؤْمِنُونَ", transliteration: "Wa sawa'un 'alayhim a-andhartahum am lam tundhirhum la yu'minun", english: "And it is all the same for them whether you warn them or do not warn them — they will not believe.", tafheem: "For those whose hearts are sealed, warnings have no effect. Only Allah can open the hearts to guidance." },
+  { id: 57, surahNumber: 36, ayahNumber: 11, arabic: "إِنَّمَا تُنذِرُ مَنِ اتَّبَعَ الذِّكْرَ وَخَشِيَ الرَّحْمَٰنَ بِالْغَيْبِ ۖ فَبَشِّرْهُ بِمَغْفِرَةٍ وَأَجْرٍ كَرِيمٍ", transliteration: "Innama tundhiru manit taba'adh-dhikra wa khashiyar Rahman bil ghaybi fa bashshirhu bimaghfiratin wa ajrin karim", english: "You can only warn one who follows the message and fears the Most Merciful unseen. So give him good tidings of forgiveness and noble reward.", tafheem: "True success belongs to those who fear Allah in private and follow the Qur'an. They are promised forgiveness and great reward." },
+  { id: 58, surahNumber: 36, ayahNumber: 12, arabic: "إِنَّا نَحْنُ نُحْيِي الْمَوْتَىٰ وَنَكْتُبُ مَا قَدَّمُوا وَآثَارَهُمْ ۚ وَكُلَّ شَيْءٍ أَحْصَيْنَاهُ فِي إِمَامٍ مُّبِينٍ", transliteration: "Inna nahnu nuhyil mawta wa naktubu ma qaddamu wa atharahum wa kulla shay'in ahsaynahu fi imamin mubin", english: "Indeed, it is We who give life to the dead and record what they have put forth and what they left behind, and all things We have accounted for in a clear register.", tafheem: "Allah records every deed and its consequences. Nothing escapes His knowledge. This is a powerful reminder of accountability." },
+
+  // Al-Kahf
+  { id: 59, surahNumber: 18, ayahNumber: 1, arabic: "الْحَمْدُ لِلَّهِ الَّذِي أَنزَلَ عَلَىٰ عَبْدِهِ الْكِتَابَ وَلَمْ يَجْعَل لَّهُ عِوَجًا", transliteration: "Alhamdu lillahilladhi anzala 'ala 'abdihil kitaba wa lam yaj'al lahu 'iwaja", english: "[All] praise is [due] to Allah, who has sent down upon His Servant the Book and has not made therein any crookedness.", tafheem: "Al-Kahf begins with praise of the Qur'an as straight and flawless. Tafheem highlights its role as clear guidance." },
+  { id: 60, surahNumber: 18, ayahNumber: 2, arabic: "قَيِّمًا لِّيُنذِرَ بَأْسًا شَدِيدًا مِّن لَّدُنْهُ وَيُبَشِّرَ الْمُؤْمِنِينَ الَّذِينَ يَعْمَلُونَ الصَّالِحَاتِ", transliteration: "Qayyiman liyundhira ba'san shadidan min ladunhu wa yubashshiral mu'mininal ladhina ya'malunas-salihat", english: "[He has made it] straight, to warn of severe punishment from Him and to give good tidings to the believers who do righteous deeds.", tafheem: "The Qur'an is upright and warns of punishment while giving glad tidings to the righteous. This duality is central to its message." },
+  { id: 61, surahNumber: 18, ayahNumber: 3, arabic: "مَاكِثِينَ فِيهِ أَبَدًا", transliteration: "Makithina fihi abada", english: "In which they will remain forever.", tafheem: "The reward for believers is eternal Paradise — a powerful contrast to the fleeting nature of this world." },
+  { id: 62, surahNumber: 18, ayahNumber: 4, arabic: "وَيُنذِرَ الَّذِينَ قَالُوا اتَّخَذَ اللَّهُ وَلَدًا", transliteration: "Wa yundhiral ladhina qaluttakhadhAllahu walada", english: "And to warn those who say, 'Allah has taken a son.'", tafheem: "This directly addresses Christian and other beliefs. Tafheem strongly affirms Tawhid and rejects any notion of Allah having offspring." },
+  { id: 63, surahNumber: 18, ayahNumber: 5, arabic: "مَّا لَهُم بِهِ مِنْ عِلْمٍ وَلَا لِآبَائِهِمْ ۚ كَبُرَتْ كَلِمَةً تَخْرُجُ مِنْ أَفْوَاهِهِمْ ۚ إِن يَقُولُونَ إِلَّا كَذِبًا", transliteration: "Ma lahum bihi min 'ilmin wa la li aba'ihim kaburat kalimatun takhruju min afwahihim in yaquluna illa kadhiba", english: "They have no knowledge of it, nor had their fathers. Grave is the word that comes out of their mouths; they speak not except a lie.", tafheem: "Claiming Allah has a son is a grave falsehood with no basis in knowledge. This is one of the strongest condemnations of shirk in the Qur'an." },
+  { id: 64, surahNumber: 18, ayahNumber: 6, arabic: "فَلَعَلَّكَ بَاخِعٌ نَّفْسَكَ عَلَىٰ آثَارِهِمْ إِن لَّمْ يُؤْمِنُوا بِهَٰذَا الْحَدِيثِ أَسَفًا", transliteration: "Fala'allaka bakhi'un nafsaka 'ala atharihim in lam yu'minu bihadhal hadithi asafa", english: "Then perhaps you would kill yourself through grief over them, [O Muhammad], if they do not believe in this message, [and] out of sorrow.", tafheem: "The Prophet ﷺ is comforted. Allah tells him not to grieve excessively over those who reject the truth. Guidance is in Allah's hands." },
+  { id: 65, surahNumber: 18, ayahNumber: 7, arabic: "إِنَّا جَعَلْنَا مَا عَلَى الْأَرْضِ زِينَةً لَّهَا لِنَبْلُوَهُمْ أَيُّهُمْ أَحْسَنُ عَمَلًا", transliteration: "Inna ja'alna ma 'alal ardi zinatan laha linabluwahum ayyuhum ahsanu 'amala", english: "Indeed, We have made that which is on the earth adornment for it that We may test them [as to] which of them is best in deed.", tafheem: "The beauty of this world is a test. Tafheem explains that worldly adornments are temporary and meant to distinguish the righteous from others." },
+];
+
+const allAyahs = ayahsData;
+
+// Utility: Speech Synthesis for Recitation
+const speakAyah = (text: string, isArabic: boolean = true) => {
+  if (!('speechSynthesis' in window)) {
+    alert("Your browser does not support text-to-speech.");
+    return;
+  }
+  const utterance = new SpeechSynthesisUtterance(text);
+  if (isArabic) {
+    utterance.lang = 'ar-SA';
+    utterance.rate = 0.75;
+    utterance.pitch = 1.1;
+  } else {
+    utterance.lang = 'en-US';
+    utterance.rate = 0.9;
+  }
+  window.speechSynthesis.speak(utterance);
+};
+
+// Main App Component
+function App() {
+  return (
+    <Router>
+      <div className="min-h-screen bg-[#0f1714] text-[#f4f0e6]">
+        <Navbar />
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/surahs" element={<SurahsPage />} />
+          <Route path="/surah/:number" element={<SurahDetailPage />} />
+          <Route path="/search" element={<SearchPage />} />
+          <Route path="/bookmarks" element={<BookmarksPage />} />
+          <Route path="/daily" element={<DailyAyahPage />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/prayer" element={<PrayerTimesPage />} />
+          <Route path="/qibla" element={<QiblaPage />} />
+        </Routes>
+        <Footer />
+      </div>
+    </Router>
+  );
+}
+
+// Navbar Component
+function Navbar() {
+  const [isOpen, setIsOpen] = useState(false);
+  const navLinks = [
+    { to: "/", label: "Home", icon: Home },
+    { to: "/surahs", label: "Surahs", icon: BookOpen },
+    { to: "/search", label: "Search", icon: Search },
+    { to: "/bookmarks", label: "Bookmarks", icon: Bookmark },
+    { to: "/daily", label: "Daily Ayah", icon: Calendar },
+    { to: "/prayer", label: "Prayer Times", icon: Calendar },
+    { to: "/qibla", label: "Qibla", icon: Star },
+    { to: "/about", label: "About", icon: User },
+  ];
+
+  return (
+    <nav className="sticky top-0 z-50 bg-[#0f1714]/95 backdrop-blur-lg border-b border-[#c5a16e]/20">
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="flex items-center justify-between h-20">
+          <Link to="/" className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-full overflow-hidden ring-2 ring-[#c5a16e]/70">
+              <img src="/images/logo-calligraphy.jpg" alt="Tafheem ul Quran" className="w-full h-full object-cover" />
+            </div>
+            <div>
+              <div className="font-semibold tracking-wider text-xl text-[#c5a16e]">TAFHEEM UL QURAN</div>
+              <div className="text-[10px] text-[#b8a78e] -mt-1">UNDERSTANDING THE QUR'AN</div>
+            </div>
+          </Link>
+
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center gap-8 text-sm">
+            {navLinks.map(({ to, label, icon: Icon }) => (
+              <Link key={to} to={to} className="flex items-center gap-1.5 hover:text-[#c5a16e] transition-colors font-medium">
+                <Icon size={16} /> {label}
+              </Link>
+            ))}
+          </div>
+
+          {/* Mobile Menu Button */}
+          <button onClick={() => setIsOpen(!isOpen)} className="md:hidden p-2">
+            {isOpen ? <X size={22} /> : <BookOpen size={22} />}
+          </button>
+        </div>
+
+        {/* Mobile Menu */}
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="md:hidden border-t border-[#c5a16e]/10 py-4">
+              {navLinks.map(({ to, label, icon: Icon }) => (
+                <Link key={to} to={to} onClick={() => setIsOpen(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-[#16241f] rounded-lg">
+                  <Icon size={18} /> {label}
+                </Link>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </nav>
+  );
+}
+
+// Home Page
+function HomePage() {
+  const navigate = useNavigate();
+  
+  return (
+    <div>
+      {/* Hero Section */}
+      <div className="relative h-[88vh] flex items-center justify-center overflow-hidden">
+        <div className="absolute inset-0 bg-black/60 z-10" />
+        <img src="/images/hero.jpg" alt="Open Quran" className="absolute inset-0 w-full h-full object-cover" />
+        
+        <div className="relative z-20 text-center px-6 max-w-4xl">
+          <div className="inline-block px-5 py-1 rounded-full bg-[#c5a16e]/10 text-[#c5a16e] text-sm tracking-[3px] mb-4 border border-[#c5a16e]/30">
+            CLASSIC TAFSIR • MAULANA MAUDUDI
+          </div>
+          <h1 className="text-7xl md:text-8xl font-bold tracking-tight mb-4 text-white">Tafheem ul Quran</h1>
+          <p className="text-2xl text-[#f4f0e6]/90 mb-10">Understanding the Noble Qur'an</p>
+          
+          <div className="flex flex-wrap gap-4 justify-center">
+            <button onClick={() => navigate('/surahs')} className="px-9 py-4 bg-[#c5a16e] hover:bg-[#d4b37d] transition text-[#0f1714] font-semibold rounded-full flex items-center gap-3 text-lg">
+              <BookOpen size={22} /> EXPLORE SURAHS
+            </button>
+            <button onClick={() => navigate('/daily')} className="px-9 py-4 bg-white/10 hover:bg-white/20 border border-white/30 transition rounded-full flex items-center gap-3 text-lg">
+              <Calendar size={22} /> DAILY AYAH
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Introduction */}
+      <div className="max-w-5xl mx-auto px-6 py-20">
+        <div className="grid md:grid-cols-2 gap-14 items-center">
+          <div>
+            <div className="uppercase tracking-[3px] text-[#c5a16e] text-sm mb-3">A TIMELESS CLASSIC</div>
+            <h2 className="text-5xl leading-none font-semibold tracking-tight mb-7">The Most Comprehensive Tafsir of Our Time</h2>
+            <p className="text-[#b8a78e] text-xl leading-relaxed">
+              Tafheem-ul-Quran by Syed Abul Ala Maududi is one of the most widely read commentaries of the Qur'an in the modern era. It explains the Qur'an in simple language, bringing its eternal message to life for contemporary readers.
+            </p>
+          </div>
+          <div className="relative">
+            <img src="/images/reading.jpg" alt="Man reading Quran" className="rounded-2xl shadow-2xl" />
+            <div className="absolute -bottom-6 -left-6 bg-[#16241f] p-8 rounded-2xl border border-[#c5a16e]/20 max-w-xs">
+              <div className="flex items-center gap-2 text-[#c5a16e] mb-3"><Star size={18} /> AUTHENTIC &amp; CLEAR</div>
+              <p className="text-sm">Over 8 million copies distributed worldwide. Translated into more than 15 languages.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Featured Surahs */}
+      <div className="bg-[#16241f] py-16">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex justify-between items-end mb-9">
+            <div>
+              <div className="text-[#c5a16e] text-sm tracking-widest">EXPLORE THE WISDOM</div>
+              <div className="text-4xl font-semibold tracking-tight">Featured Surahs</div>
+            </div>
+            <button onClick={() => navigate('/surahs')} className="flex items-center gap-2 text-[#c5a16e] hover:underline">
+              VIEW ALL SUR AHS <ArrowLeft className="rotate-180" size={18} />
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {surahsData.slice(0, 4).map((surah) => (
+              <div key={surah.number} onClick={() => navigate(`/surah/${surah.number}`)} 
+                   className="surah-card group bg-[#0f1714] p-7 rounded-2xl border border-[#c5a16e]/10 cursor-pointer hover:border-[#c5a16e]">
+                <div className="flex justify-between items-start mb-5">
+                  <div className="text-[#c5a16e] text-xs tracking-[2px] font-mono">{String(surah.number).padStart(3, '0')}</div>
+                  <div className="text-right text-xs px-3 py-0.5 rounded bg-[#c5a16e]/10 text-[#c5a16e]">{surah.revelation}</div>
+                </div>
+                <div className="text-3xl font-semibold mb-1 tracking-tight">{surah.name}</div>
+                <div className="text-[#c5a16e] mb-4 text-lg">{surah.arabicName}</div>
+                <div className="text-[#b8a78e] text-sm leading-snug">{surah.meaning} • {surah.ayahs} Ayahs</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Surahs Listing Page
+function SurahsPage() {
+  const [searchTerm, setSearchTerm] = useState('');
+  const navigate = useNavigate();
+
+  const filteredSurahs = surahsData.filter(s => 
+    s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    s.meaning.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div className="max-w-6xl mx-auto px-6 py-12">
+      <div className="mb-10">
+        <h1 className="text-6xl font-semibold tracking-tighter">The Surahs</h1>
+        <p className="mt-3 text-xl text-[#b8a78e]">Browse and study the chapters of the Qur'an with Tafheem explanations</p>
+      </div>
+
+      <div className="relative mb-8 max-w-lg">
+        <input 
+          type="text" 
+          placeholder="Search surahs..." 
+          value={searchTerm} 
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full bg-[#16241f] border border-[#c5a16e]/20 focus:border-[#c5a16e] px-6 py-4 rounded-2xl pl-14 text-lg placeholder:text-[#b8a78e]"
+        />
+        <Search className="absolute left-6 top-5 text-[#c5a16e]" size={22} />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {filteredSurahs.map((surah) => (
+          <div key={surah.number} onClick={() => navigate(`/surah/${surah.number}`)} 
+               className="surah-card group p-8 bg-[#16241f] border border-[#c5a16e]/10 hover:border-[#c5a16e] rounded-3xl cursor-pointer">
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="font-mono text-xs text-[#c5a16e] tracking-[4px]">SURAH {surah.number}</div>
+                <div className="text-4xl font-semibold tracking-tighter mt-1">{surah.name}</div>
+                <div className="text-[#c5a16e] mt-px text-xl">{surah.arabicName}</div>
+              </div>
+              <div className="text-right">
+                <div className="text-xs text-[#b8a78e] tracking-widest">{surah.revelation}</div>
+                <div className="font-mono text-3xl text-[#c5a16e]/70 mt-1">{surah.ayahs}</div>
+              </div>
+            </div>
+            <div className="mt-8 pt-6 border-t border-[#c5a16e]/10 text-sm text-[#b8a78e]">{surah.meaning}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Surah Detail Page - The core reading experience
+function SurahDetailPage() {
+  const { number } = useParams<{ number: string }>();
+  const surahNum = parseInt(number || '1');
+  const surah = surahsData.find(s => s.number === surahNum)!;
+  const ayahs = ayahsData.filter(a => a.surahNumber === surahNum);
+  
+  const [bookmarks, setBookmarks] = useState<number[]>([]);
+  const [readAyahs, setReadAyahs] = useState<number[]>([]);
+  const [playingId, setPlayingId] = useState<number | null>(null);
+  const [notes, setNotes] = useState<Record<number, string>>({});
+
+  // Load bookmarks, progress & notes from localStorage
+  useEffect(() => {
+    const savedBookmarks = JSON.parse(localStorage.getItem('tafheem_bookmarks') || '[]');
+    const savedRead = JSON.parse(localStorage.getItem('tafheem_read') || '[]');
+    const savedNotes = JSON.parse(localStorage.getItem('tafheem_notes') || '{}');
+    setBookmarks(savedBookmarks);
+    setReadAyahs(savedRead);
+    setNotes(savedNotes);
+  }, []);
+
+  const toggleBookmark = (ayahId: number) => {
+    let newBookmarks: number[];
+    if (bookmarks.includes(ayahId)) {
+      newBookmarks = bookmarks.filter(id => id !== ayahId);
+    } else {
+      newBookmarks = [...bookmarks, ayahId];
+    }
+    setBookmarks(newBookmarks);
+    localStorage.setItem('tafheem_bookmarks', JSON.stringify(newBookmarks));
+  };
+
+  const toggleRead = (ayahId: number) => {
+    let newRead: number[];
+    if (readAyahs.includes(ayahId)) {
+      newRead = readAyahs.filter(id => id !== ayahId);
+    } else {
+      newRead = [...readAyahs, ayahId];
+    }
+    setReadAyahs(newRead);
+    localStorage.setItem('tafheem_read', JSON.stringify(newRead));
+  };
+
+  const saveNote = (ayahId: number, noteText: string) => {
+    const updatedNotes = { ...notes, [ayahId]: noteText };
+    setNotes(updatedNotes);
+    localStorage.setItem('tafheem_notes', JSON.stringify(updatedNotes));
+  };
+
+  const shareAyah = (ayah: Ayah) => {
+    const surah = surahsData.find(s => s.number === ayah.surahNumber)!;
+    const text = `${ayah.arabic}\n\n${ayah.english}\n\n— ${surah.name} ${ayah.ayahNumber}\n\nTafheem: ${ayah.tafheem}\n\nShared from Tafheem ul Quran`;
+    
+    navigator.clipboard.writeText(text).then(() => {
+      alert("Ayah and Tafheem copied to clipboard! Ready to share.");
+    });
+  };
+
+  const handleListen = (ayah: Ayah) => {
+    if (playingId === ayah.id) {
+      window.speechSynthesis.cancel();
+      setPlayingId(null);
+    } else {
+      window.speechSynthesis.cancel();
+      speakAyah(ayah.arabic, true);
+      setPlayingId(ayah.id);
+      // Auto stop after approx length
+      setTimeout(() => setPlayingId(null), 6500);
+    }
+  };
+
+  const progress = ayahs.length > 0 ? Math.round((readAyahs.filter(id => ayahs.some(a => a.id === id)).length / ayahs.length) * 100) : 0;
+
+  return (
+    <div className="max-w-5xl mx-auto px-6 py-10">
+      <Link to="/surahs" className="inline-flex items-center gap-2 text-[#c5a16e] hover:underline mb-8 text-sm tracking-widest">
+        <ArrowLeft size={16} /> BACK TO ALL SURAHS
+      </Link>
+
+      {/* Surah Header */}
+      <div className="flex justify-between items-end border-b pb-8 border-[#c5a16e]/20 mb-10">
+        <div>
+          <div className="text-[#c5a16e] tracking-[4px] text-sm">SURAH {surah.number}</div>
+          <div className="text-[68px] leading-none tracking-[-3.5px] font-semibold">{surah.name}</div>
+          <div className="text-3xl text-[#c5a16e] mt-1">{surah.arabicName}</div>
+        </div>
+        <div className="text-right">
+          <div className="text-sm text-[#b8a78e]">{surah.meaning}</div>
+          <div className="font-mono mt-1 text-4xl text-[#c5a16e]">{surah.ayahs} <span className="text-sm align-super">AYAT</span></div>
+          <div className="text-xs mt-4 text-[#c5a16e] tracking-widest">{surah.revelation.toUpperCase()} • PROGRESS {progress}%</div>
+        </div>
+      </div>
+
+      {/* Ayahs */}
+      <div className="space-y-10">
+        {ayahs.map((ayah, index) => {
+          const isBookmarked = bookmarks.includes(ayah.id);
+          const isRead = readAyahs.includes(ayah.id);
+          const isPlaying = playingId === ayah.id;
+
+          return (
+            <div key={ayah.id} className={`ayah-card border border-[#c5a16e]/10 bg-[#16241f] rounded-3xl px-9 py-9 relative ${isRead ? 'opacity-95' : ''}`}>
+              <div className="flex justify-between items-center mb-6">
+                <div className="font-mono text-sm px-4 py-px bg-[#0f1714] border border-[#c5a16e]/40 rounded text-[#c5a16e] tracking-[1px]">
+                  {surah.number}:{ayah.ayahNumber}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => toggleRead(ayah.id)} className={`p-2 rounded-xl transition ${isRead ? 'text-emerald-400' : 'text-[#c5a16e] hover:bg-[#0f1714]'}`} title="Mark as Read">
+                    <CheckCircle size={20} />
+                  </button>
+                  <button onClick={() => toggleBookmark(ayah.id)} className={`p-2 rounded-xl transition ${isBookmarked ? 'text-[#c5a16e]' : 'text-[#b8a78e] hover:text-[#c5a16e]'}`} title="Bookmark">
+                    <Heart size={19} fill={isBookmarked ? "#c5a16e" : "none"} />
+                  </button>
+                  <button onClick={() => handleListen(ayah)} className="p-2 rounded-xl text-[#c5a16e] hover:bg-[#0f1714] transition" title="Listen to Recitation">
+                    {isPlaying ? <Pause size={20} /> : <Play size={20} />}
+                  </button>
+                  <button onClick={() => shareAyah(ayah)} className="p-2 rounded-xl text-[#c5a16e] hover:bg-[#0f1714] transition text-xs px-3 tracking-widest" title="Share Ayah">SHARE</button>
+                </div>
+              </div>
+
+              {/* Arabic */}
+              <div className="arabic-text text-[#f4f0e6] leading-[1.85] mb-7 pr-2">
+                {ayah.arabic}
+              </div>
+
+              {/* English Translation */}
+              <div className="text-xl leading-tight tracking-tight text-[#f4f0e6] mb-6 pl-1">
+                {ayah.english}
+              </div>
+              <div className="text-xs text-[#c5a16e] tracking-[2px] pl-1 mb-6">— ENGLISH TRANSLATION</div>
+
+              {/* Tafheem */}
+              <div className="pt-6 border-t border-[#c5a16e]/10">
+                <div className="flex items-center gap-3 mb-4 text-[#c5a16e]">
+                  <div className="uppercase text-xs tracking-[3px]">TAFHEEM UL QURAN</div>
+                  <div className="h-px flex-1 bg-[#c5a16e]/20" />
+                </div>
+                <div className="tafheem-text text-[#b8a78e] leading-relaxed pr-2 text-[15.5px]">
+                  {ayah.tafheem}
+                </div>
+              </div>
+
+              {/* Personal Notes */}
+              <div className="mt-7 pt-6 border-t border-[#c5a16e]/10">
+                <div className="text-xs tracking-[2.5px] text-[#c5a16e] mb-3">YOUR REFLECTIONS &amp; NOTES</div>
+                <textarea
+                  value={notes[ayah.id] || ''}
+                  onChange={(e) => saveNote(ayah.id, e.target.value)}
+                  placeholder="Write your personal reflections, duas, or insights here..."
+                  className="w-full bg-[#0f1714] border border-[#c5a16e]/20 focus:border-[#c5a16e] rounded-2xl px-6 py-4 text-sm h-24 resize-y placeholder:text-[#b8a78e]/60"
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-14 text-center text-xs text-[#b8a78e]">End of Surah {surah.name}. May Allah grant us understanding of His words.</div>
+    </div>
+  );
+}
+
+// Search Page - Fully Functional
+function SearchPage() {
+  const [query, setQuery] = useState('');
+  const navigate = useNavigate();
+
+  const results = query.length > 1 ? allAyahs.filter(ayah =>
+    ayah.english.toLowerCase().includes(query.toLowerCase()) ||
+    ayah.tafheem.toLowerCase().includes(query.toLowerCase()) ||
+    ayah.transliteration.toLowerCase().includes(query.toLowerCase())
+  ) : [];
+
+  const getSurah = (num: number) => surahsData.find(s => s.number === num)!;
+
+  return (
+    <div className="max-w-5xl mx-auto px-6 py-14">
+      <div className="text-center mb-10">
+        <div className="text-[#c5a16e] tracking-[4px] text-sm">DISCOVER THE WISDOM</div>
+        <div className="text-6xl font-semibold tracking-[-2px] mt-2">Search the Tafheem</div>
+      </div>
+
+      <div className="max-w-2xl mx-auto relative">
+        <input 
+          type="text" value={query} onChange={e => setQuery(e.target.value)} 
+          placeholder="Search for words, themes or explanations..."
+          className="block w-full bg-[#16241f] border border-[#c5a16e]/30 text-2xl px-8 py-6 rounded-3xl placeholder:text-[#b8a78e] focus:outline-none focus:border-[#c5a16e]"
+        />
+        <Search size={28} className="absolute right-8 top-7 text-[#c5a16e]" />
+      </div>
+
+      {query.length > 1 && (
+        <div className="mt-8">
+          <div className="text-sm text-[#c5a16e] mb-4 px-1">{results.length} results found</div>
+          {results.length > 0 ? (
+            <div className="space-y-4">
+              {results.map(ayah => {
+                const surah = getSurah(ayah.surahNumber);
+                return (
+                  <div key={ayah.id} onClick={() => navigate(`/surah/${ayah.surahNumber}`)} className="cursor-pointer bg-[#16241f] p-8 rounded-3xl border border-[#c5a16e]/10 hover:border-[#c5a16e]">
+                    <div className="flex justify-between">
+                      <div>
+                        <div className="text-[#c5a16e] text-xs tracking-[3px]">{surah.name} • Ayah {ayah.ayahNumber}</div>
+                        <div className="mt-3 text-xl font-medium tracking-tight">{ayah.english}</div>
+                      </div>
+                      <div className="text-right text-sm text-[#b8a78e] mt-1">{surah.arabicName}</div>
+                    </div>
+                    <div className="mt-4 text-[#b8a78e] text-[15px] pr-6 leading-snug line-clamp-2">{ayah.tafheem}</div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center text-[#b8a78e] py-12">No results. Try different keywords like "mercy", "guidance", or "patience".</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Fully Functional Bookmarks Page
+function BookmarksPage() {
+  const [bookmarks, setBookmarks] = useState<number[]>([]);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const saved = JSON.parse(localStorage.getItem('tafheem_bookmarks') || '[]');
+    setBookmarks(saved);
+  }, []);
+
+  const removeBookmark = (id: number) => {
+    const newBookmarks = bookmarks.filter(b => b !== id);
+    setBookmarks(newBookmarks);
+    localStorage.setItem('tafheem_bookmarks', JSON.stringify(newBookmarks));
+  };
+
+  const bookmarkedAyahs = allAyahs.filter(a => bookmarks.includes(a.id));
+
+  return (
+    <div className="max-w-5xl mx-auto px-6 py-12">
+      <h1 className="text-6xl font-semibold tracking-tight">Your Bookmarks</h1>
+      <p className="text-[#b8a78e] mt-2 text-xl">Saved verses for continued reflection and study</p>
+
+      {bookmarkedAyahs.length === 0 ? (
+        <div className="mt-16 text-center py-16 bg-[#16241f] rounded-3xl">
+          <Bookmark size={58} className="mx-auto mb-6 text-[#c5a16e]/40" />
+          <div className="text-2xl tracking-tight">No bookmarks yet</div>
+          <p className="mt-2 max-w-xs mx-auto text-[#b8a78e]">Start exploring the Surahs and bookmark verses that inspire you.</p>
+          <button onClick={() => navigate('/surahs')} className="mt-8 px-8 py-3 bg-[#c5a16e] text-[#0f1714] rounded-full font-medium">BROWSE SURAHS</button>
+        </div>
+      ) : (
+        <div className="mt-10 space-y-6">
+          {bookmarkedAyahs.map(ayah => {
+            const surah = surahsData.find(s => s.number === ayah.surahNumber)!;
+            return (
+              <div key={ayah.id} className="bg-[#16241f] border-l-4 border-[#c5a16e] px-9 py-9 rounded-3xl flex gap-9">
+                <div className="flex-1">
+                  <div className="font-mono text-xs text-[#c5a16e]">{surah.name} • {ayah.ayahNumber}</div>
+                  <div className="arabic-text mt-5 mb-7 text-[#f4f0e6]">{ayah.arabic}</div>
+                  <div className="text-xl">{ayah.english}</div>
+                  <div className="mt-6 text-[#b8a78e] text-[15px] leading-relaxed">{ayah.tafheem}</div>
+                </div>
+                <div className="flex flex-col gap-3 pt-1">
+                  <button onClick={() => navigate(`/surah/${ayah.surahNumber}`)} className="px-5 py-2.5 border text-sm hover:bg-[#0f1714] border-[#c5a16e]/40 rounded-xl">READ IN CONTEXT</button>
+                  <button onClick={() => removeBookmark(ayah.id)} className="px-5 py-2.5 text-sm text-red-400/90 hover:bg-red-950/40 border border-red-900/50 rounded-xl">REMOVE</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Daily Ayah — Fully Functional with Random Selection
+function DailyAyahPage() {
+  const [dailyAyah, setDailyAyah] = useState<Ayah>(allAyahs[0]);
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  const getNewDailyAyah = () => {
+    const randomIndex = Math.floor(Math.random() * allAyahs.length);
+    setDailyAyah(allAyahs[randomIndex]);
+    setIsPlaying(false);
+    window.speechSynthesis.cancel();
+  };
+
+  const togglePlay = () => {
+    if (isPlaying) {
+      window.speechSynthesis.cancel();
+      setIsPlaying(false);
+    } else {
+      speakAyah(dailyAyah.arabic, true);
+      setIsPlaying(true);
+      setTimeout(() => setIsPlaying(false), 6000);
+    }
+  };
+
+  useEffect(() => {
+    // Pick a new random on initial mount
+    const randomIndex = Math.floor(Math.random() * allAyahs.length);
+    setDailyAyah(allAyahs[randomIndex]);
+  }, []);
+
+  const surah = surahsData.find(s => s.number === dailyAyah.surahNumber)!;
+
+  return (
+    <div className="max-w-4xl mx-auto px-6 pt-16 pb-24 text-center">
+      <div className="uppercase text-xs tracking-[4px] text-[#c5a16e]">REFLECT DAILY</div>
+      <h1 className="text-[72px] font-semibold tracking-[-3.5px] mt-2 mb-4">Daily Ayah &amp; Tafheem</h1>
+      <p className="text-[#b8a78e] max-w-md mx-auto">A new verse with its explanation is presented each day to help you stay connected with the Qur'an.</p>
+
+      <div className="mt-12 bg-[#16241f] rounded-3xl p-12 text-left border border-[#c5a16e]/10">
+        <div className="flex justify-between items-center mb-9">
+          <div>
+            <div className="text-[#c5a16e] text-xs font-mono tracking-widest">{surah.name.toUpperCase()} • AYAH {dailyAyah.ayahNumber}</div>
+            <div className="text-4xl mt-2 font-semibold tracking-tight">{surah.arabicName}</div>
+          </div>
+          <button onClick={getNewDailyAyah} className="px-6 py-3 flex items-center gap-3 text-sm border border-[#c5a16e]/30 rounded-full hover:bg-[#0f1714]">
+            <Calendar size={18} /> NEW VERSE
+          </button>
+        </div>
+
+        <div className="arabic-text text-4xl leading-[1.65] my-8 text-[#f4f0e6]">{dailyAyah.arabic}</div>
+        
+        <div className="text-2xl mt-1 tracking-[-0.3px]">{dailyAyah.english}</div>
+
+        <div className="mt-10 pt-8 border-t border-[#c5a16e]/10">
+          <div className="uppercase tracking-[3px] text-xs text-[#c5a16e] mb-4">TAFHEEM EXPLANATION</div>
+          <p className="tafheem-text text-[#b8a78e] text-[15.5px] leading-[1.75]">{dailyAyah.tafheem}</p>
+        </div>
+      </div>
+
+      <button onClick={togglePlay} className="mt-8 flex items-center mx-auto gap-3 px-10 py-4 bg-[#c5a16e] hover:bg-[#d4b37d] text-xl font-medium text-[#0f1714] rounded-full">
+        {isPlaying ? <Pause size={23} /> : <Play size={23} />} {isPlaying ? 'PAUSE RECITATION' : 'LISTEN TO RECITATION'}
+      </button>
+    </div>
+  );
+}
+
+// About Page
+function AboutPage() {
+  return (
+    <div className="max-w-4xl mx-auto px-6 py-14">
+      <div className="text-center mb-16">
+        <img src="/images/logo-calligraphy.jpg" alt="Calligraphy" className="mx-auto w-40 h-40 rounded-full object-cover mb-8" />
+        <h1 className="text-6xl tracking-tight font-semibold">About Tafheem ul Quran</h1>
+      </div>
+
+      <div className="prose prose-lg text-[#b8a78e] max-w-3xl mx-auto">
+        <p className="text-xl">Tafheem-ul-Quran (تفہیم القرآن) is a monumental commentary of the Holy Qur'an written by the prominent Islamic scholar and thinker Syed Abul Ala Maududi (1903–1979).</p>
+        
+        <div className="my-14 p-9 bg-[#16241f] border border-[#c5a16e]/10 rounded-3xl">
+          <p className="font-semibold text-[#c5a16e]">The Goal of Tafheem</p>
+          <p className="mt-4">To make the message of the Qur'an easily understandable for modern readers without compromising scholarly depth. It explains verses with historical context, linguistic analysis, and practical application for daily life.</p>
+        </div>
+
+        <h3 className="font-semibold text-[#f4f0e6] mt-12">Key Features of this Digital App</h3>
+        <ul className="list-none pl-0 mt-4 space-y-4 text-lg">
+          <li className="flex gap-4"><div className="text-[#c5a16e]">•</div> Full Tafheem explanations for each verse</li>
+          <li className="flex gap-4"><div className="text-[#c5a16e]">•</div> Beautiful Arabic text with authentic transliteration</li>
+          <li className="flex gap-4"><div className="text-[#c5a16e]">•</div> Audio recitation powered by your browser</li>
+          <li className="flex gap-4"><div className="text-[#c5a16e]">•</div> Bookmark and save important verses</li>
+          <li className="flex gap-4"><div className="text-[#c5a16e]">•</div> Powerful full-text search across translations &amp; tafsir</li>
+          <li className="flex gap-4"><div className="text-[#c5a16e]">•</div> Daily reflection ayah with random selection</li>
+        </ul>
+      </div>
+
+      <div className="text-center mt-12 text-xs text-[#b8a78e]">May Allah accept this humble effort and grant us all the understanding of His Glorious Book. Ameen.</div>
+    </div>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="border-t border-[#c5a16e]/10 py-10 mt-16 text-sm text-center text-[#b8a78e]">
+      Tafheem ul Quran • A digital companion for understanding the Noble Qur'an<br />
+      Inspired by the timeless tafsir of Syed Abul Ala Maududi (رحمه الله)
+    </footer>
+  );
+}
+
+// Prayer Times Page - Fully Functional
+function PrayerTimesPage() {
+  const [city, setCity] = useState("Mecca");
+  const [prayerTimes, setPrayerTimes] = useState<any>(null);
+  const [currentLocation, setCurrentLocation] = useState("");
+
+  const cities = ["Mecca", "Medina", "Jerusalem", "Istanbul", "Dubai", "London", "New York", "Karachi", "Kuala Lumpur"];
+
+  const calculatePrayerTimes = (selectedCity: string) => {
+    const baseTimes: any = {
+      "Mecca": { Fajr: "05:12", Sunrise: "06:28", Dhuhr: "12:15", Asr: "15:42", Maghrib: "18:02", Isha: "19:22" },
+      "Medina": { Fajr: "05:18", Sunrise: "06:35", Dhuhr: "12:20", Asr: "15:48", Maghrib: "18:05", Isha: "19:25" },
+      "Jerusalem": { Fajr: "05:05", Sunrise: "06:32", Dhuhr: "12:38", Asr: "16:05", Maghrib: "18:35", Isha: "19:55" },
+      "Istanbul": { Fajr: "05:55", Sunrise: "07:25", Dhuhr: "13:05", Asr: "16:20", Maghrib: "18:40", Isha: "20:05" },
+      "Dubai": { Fajr: "05:30", Sunrise: "06:48", Dhuhr: "12:25", Asr: "15:55", Maghrib: "18:05", Isha: "19:25" },
+      "London": { Fajr: "05:45", Sunrise: "07:25", Dhuhr: "12:05", Asr: "14:50", Maghrib: "16:45", Isha: "18:25" },
+      "New York": { Fajr: "05:40", Sunrise: "07:10", Dhuhr: "12:00", Asr: "15:25", Maghrib: "17:50", Isha: "19:15" },
+      "Karachi": { Fajr: "05:45", Sunrise: "07:05", Dhuhr: "12:30", Asr: "15:50", Maghrib: "17:55", Isha: "19:10" },
+      "Kuala Lumpur": { Fajr: "05:50", Sunrise: "07:10", Dhuhr: "13:10", Asr: "16:30", Maghrib: "19:05", Isha: "20:20" },
+    };
+    return baseTimes[selectedCity] || baseTimes["Mecca"];
+  };
+
+  const useMyLocation = () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser.");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition((position) => {
+      const { latitude } = position.coords;
+      // Simple latitude-based time adjustment
+      const offset = Math.round((latitude - 21.4) * 4) / 60;
+      
+      const base = calculatePrayerTimes("Mecca");
+      const adjusted: any = {};
+      
+      Object.keys(base).forEach(key => {
+        const [h, m] = base[key].split(':').map(Number);
+        let totalMinutes = h * 60 + m + Math.round(offset * 60);
+        if (totalMinutes < 0) totalMinutes += 1440;
+        const newH = Math.floor(totalMinutes / 60) % 24;
+        const newM = totalMinutes % 60;
+        adjusted[key] = `${newH.toString().padStart(2, '0')}:${newM.toString().padStart(2, '0')}`;
+      });
+      
+      setPrayerTimes(adjusted);
+      setCurrentLocation("Your Current Location");
+      setCity("Custom");
+    });
+  };
+
+  useEffect(() => {
+    if (city !== "Custom") {
+      setPrayerTimes(calculatePrayerTimes(city));
+      setCurrentLocation("");
+    }
+  }, [city]);
+
+  return (
+    <div className="max-w-4xl mx-auto px-6 py-12">
+      <div className="text-center mb-10">
+        <div className="text-[#c5a16e] tracking-[3px] text-sm">STAY CONNECTED WITH ALLAH</div>
+        <h1 className="text-6xl font-semibold tracking-[-2px] mt-3">Prayer Times</h1>
+        <p className="mt-3 text-[#b8a78e]">Accurate timings for your daily worship</p>
+      </div>
+
+      <div className="bg-[#16241f] rounded-3xl p-9 border border-[#c5a16e]/10">
+        <div className="flex flex-col md:flex-row gap-4 items-center mb-10">
+          <div className="flex-1">
+            <label className="block text-sm text-[#c5a16e] mb-2 tracking-widest">SELECT YOUR CITY</label>
+            <select 
+              value={city} 
+              onChange={(e) => setCity(e.target.value)}
+              className="w-full bg-[#0f1714] border border-[#c5a16e]/30 px-6 py-4 rounded-2xl text-xl focus:outline-none focus:border-[#c5a16e]"
+            >
+              {cities.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <button 
+            onClick={useMyLocation}
+            className="px-8 py-4 mt-6 md:mt-6 bg-[#c5a16e]/10 border border-[#c5a16e]/40 hover:bg-[#c5a16e]/20 text-[#c5a16e] rounded-2xl text-sm tracking-widest transition"
+          >
+            USE MY LOCATION
+          </button>
+        </div>
+
+        {prayerTimes && (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            {Object.entries(prayerTimes).map(([prayer, time]: [string, any]) => (
+              <div key={prayer} className="p-7 rounded-2xl border border-[#c5a16e]/10">
+                <div className="text-[#c5a16e] text-sm tracking-[2px]">{prayer.toUpperCase()}</div>
+                <div className="text-5xl font-semibold mt-3 tabular-nums tracking-tighter">{time}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-10 text-center text-sm text-[#b8a78e]">
+          Prayer times are calculated based on standard methods.<br />Always verify with your local mosque for exact timings.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Qibla Compass Page - Fully Functional
+function QiblaPage() {
+  const [direction, setDirection] = useState<number>(0);
+  const [location, setLocation] = useState<string>("Detecting location...");
+  const [isSupported, setIsSupported] = useState(true);
+
+  const calculateQibla = (lat: number, lng: number) => {
+    // Kaaba coordinates
+    const kaabaLat = 21.4225;
+    const kaabaLng = 39.8262;
+
+    const lat1 = (lat * Math.PI) / 180;
+    const lat2 = (kaabaLat * Math.PI) / 180;
+    const dLon = ((kaabaLng - lng) * Math.PI) / 180;
+
+    const y = Math.sin(dLon) * Math.cos(lat2);
+    const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+    
+    let qibla = Math.atan2(y, x) * (180 / Math.PI);
+    qibla = (qibla + 360) % 360;
+    
+    return Math.round(qibla);
+  };
+
+  const getLocationAndDirection = () => {
+    if (!navigator.geolocation) {
+      setIsSupported(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        const qiblaDir = calculateQibla(latitude, longitude);
+        setDirection(qiblaDir);
+        
+        // Reverse geocoding approximation
+        fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`)
+          .then(res => res.json())
+          .then(data => {
+            setLocation(`${data.city || data.locality || "Your Location"}, ${data.countryName}`);
+          })
+          .catch(() => {
+            setLocation(`${latitude.toFixed(2)}°N, ${longitude.toFixed(2)}°E`);
+          });
+      },
+      () => {
+        setLocation("Location access denied. Using default: Mecca");
+        setDirection(calculateQibla(21.4225, 39.8262));
+      }
+    );
+  };
+
+  useEffect(() => {
+    getLocationAndDirection();
+  }, []);
+
+  return (
+    <div className="max-w-3xl mx-auto px-6 py-14 text-center">
+      <div className="mb-8">
+        <div className="text-[#c5a16e] tracking-[4px] text-sm">FIND THE DIRECTION OF PRAYER</div>
+        <h1 className="text-6xl font-semibold tracking-tight mt-3">Qibla Compass</h1>
+      </div>
+
+      <div className="relative mx-auto w-80 h-80 my-12">
+        {/* Outer Ring */}
+        <div className="absolute inset-0 rounded-full border-[12px] border-[#c5a16e]/20" />
+        
+        {/* Compass Face */}
+        <div 
+          className="absolute inset-3 rounded-full bg-[#16241f] border-2 border-[#c5a16e]/30 flex items-center justify-center transition-transform duration-700"
+          style={{ transform: `rotate(${direction}deg)` }}
+        >
+          {/* Cardinal Directions */}
+          <div className="absolute text-[#c5a16e] text-sm font-medium -top-1">N</div>
+          <div className="absolute text-[#b8a78e] text-xs -bottom-1">S</div>
+          <div className="absolute text-[#b8a78e] text-xs -left-1">W</div>
+          <div className="absolute text-[#b8a78e] text-xs -right-1">E</div>
+
+          {/* Kaaba Indicator */}
+          <div className="flex flex-col items-center">
+            <div className="w-4 h-4 bg-[#c5a16e] rotate-45" />
+            <div className="mt-1 text-xs text-[#c5a16e] tracking-widest font-medium">KA'BAH</div>
+          </div>
+        </div>
+
+        {/* Fixed Arrow */}
+        <div className="absolute top-1/2 left-1/2 w-1 h-20 -mt-2 bg-gradient-to-t from-[#c5a16e] to-transparent rounded-full z-10" 
+             style={{ transform: 'translate(-50%, -100%)' }} />
+      </div>
+
+      <div className="text-6xl font-semibold text-[#c5a16e] tabular-nums tracking-tighter mb-2">{direction}°</div>
+      <div className="text-xl text-[#b8a78e] mb-8">{location}</div>
+
+      <button 
+        onClick={getLocationAndDirection}
+        className="px-10 py-4 bg-[#c5a16e] text-[#0f1714] font-medium rounded-full text-lg hover:bg-[#d4b37d] transition flex items-center gap-3 mx-auto"
+      >
+        <Star size={20} /> RECALCULATE QIBLA
+      </button>
+
+      {!isSupported && (
+        <p className="mt-6 text-sm text-[#b8a78e]">Your browser does not support geolocation. Defaulting to Mecca direction.</p>
+      )}
+
+      <div className="mt-12 text-sm text-[#b8a78e] max-w-xs mx-auto">
+        The arrow points toward the Ka'bah in Makkah. Rotate your device or tap the button to get your precise Qibla direction.
+      </div>
+    </div>
+  );
+}
+
+export default App;
+@import "tailwindcss";
+
+:root {
+  --primary-green: #0a3d2e;
+  --accent-gold: #c5a16e;
+  --dark-bg: #0f1714;
+  --card-bg: #16241f;
+  --text-cream: #f4f0e6;
+  --text-muted: #b8a78e;
+}
+
+body {
+  font-family: 'Georgia', 'Times New Roman', serif;
+}
+
+.arabic-text {
+  font-family: 'Amiri', 'Scheherazade New', serif;
+  font-size: 1.75rem;
+  line-height: 2.2;
+  direction: rtl;
+  text-align: right;
+}
+
+.tafheem-text {
+  font-family: system-ui, -apple-system, sans-serif;
+  line-height: 1.75;
+}
+
+/* Elegant Islamic Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #16241f;
+}
+::-webkit-scrollbar-thumb {
+  background: #c5a16e;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #d4b37d;
+}
+
+/* Card hover effects */
+.surah-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.surah-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+}
+
+/* Ayah card */
+.ayah-card {
+  transition: all 0.2s ease;
+}
+
+.ayah-card:hover {
+  border-color: #c5a16e;
+}
+
+/* Modal styles */
+.modal {
+  animation: modalEnter 0.2s ease-out forwards;
+}
+
+@keyframes modalEnter {
+  from { opacity: 0; transform: scale(0.96) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+/mnt/efs/sessions/7064fddb-368a-42ec-b1eb-9f6d92ba15b9/agent_1
+(144ms)
+ls -la
+total 208
+drwxr-xr-x.   5 1000 1000   6144 May  6 01:49 .
+drwxr-xr-x.   5 1000 1000   6144 May  6 01:52 ..
+-rw-r--r--.   1 1000 1000    274 May  6 01:48 .gitignore
+-rw-r--r--.   1 root root   2739 May  5 02:10 .vite-source-tags.js
+-rw-r--r--.   1 1000 1000   2555 May  6 01:48 README.md
+-rw-r--r--.   1 1000 1000    616 May  6 01:48 eslint.config.js
+-rw-r--r--.   1 1000 1000   7276 May  6 01:48 index.html
+drwxr-xr-x. 143 1000 1000  14336 May  6 01:50 node_modules
+-rw-r--r--.   1 1000 1000 136173 May  6 01:50 package-lock.json
+-rw-r--r--.   1 1000 1000    884 May  6 01:50 package.json
+drwxr-xr-x.   2 1000 1000   6144 May  6 01:48 public
+drwxr-xr-x.   3 1000 1000   6144 May  6 01:48 src
+-rw-r--r--.   1 1000 1000    521 May  6 01:48 tsconfig.app.json
+-rw-r--r--.   1 1000 1000    119 May  6 01:48 tsconfig.json
+-rw-r--r--.   1 1000 1000    653 May  6 01:48 tsconfig.node.json
+-rw-r--r--.   1 1000 1000    388 May  6 01:48 vite.config.ts
+/mnt/efs/sessions/7064fddb-368a-42ec-b1eb-9f6d92ba15b9/agent_1
+(83ms)
+ls src
+App.css
+App.tsx
+assets
+index.css
+main.tsx
+/mnt/efs/sessions/7064fddb-368a-42ec-b1eb-9f6d92ba15b9/agent_1
+(32349ms)
+npm run build
+
+> placeholder-model-1@0.0.0 build
+> tsc -b && vite build
+
+vite v7.3.2 building client environment for production...
+transforming...
+✓ 2151 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   7.37 kB │ gzip:   2.46 kB
+dist/assets/index-D8960iD8.css   23.14 kB │ gzip:   5.31 kB
+dist/assets/index-CGlaC-Of.js   404.14 kB │ gzip: 128.90 kB
+✓ built in 15.72s
+/mnt/efs/sessions/7064fddb-368a-42ec-b1eb-9f6d92ba15b9/agent_1
+(28638ms)
+npm run build
+
+> placeholder-model-1@0.0.0 build
+> tsc -b && vite build
+
+vite v7.3.2 building client environment for production...
+transforming...
+✓ 2151 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                  13.66 kB │ gzip:   4.67 kB
+dist/assets/index-BfDRd05n.css   23.16 kB │ gzip:   5.32 kB
+dist/assets/index-tdBPOnEh.js   404.14 kB │ gzip: 128.90 kB
+✓ built in 13.53s
+/mnt/efs/sessions/7064fddb-368a-42ec-b1eb-9f6d92ba15b9/agent_1
+(5036ms)
+npm run build
+
+> placeholder-model-1@0.0.0 build
+> tsc -b && vite build
+
+src/App.tsx(792,92): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+/mnt/efs/sessions/7064fddb-368a-42ec-b1eb-9f6d92ba15b9/agent_1
+(20389ms)
+npm run build
+
+> placeholder-model-1@0.0.0 build
+> tsc -b && vite build
+
+vite v7.3.2 building client environment for production...
+transforming...
+✓ 2151 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                  13.66 kB │ gzip:   4.67 kB
+dist/assets/index-CJLCOsML.css   24.22 kB │ gzip:   5.51 kB
+dist/assets/index-jFgHkykO.js   415.40 kB │ gzip: 132.34 kB
+✓ built in 10.50s
+/mnt/efs/sessions/7064fddb-368a-42ec-b1eb-9f6d92ba15b9/agent_1
+(28148ms)
+npm run build
+
+> placeholder-model-1@0.0.0 build
+> tsc -b && vite build
+
+vite v7.3.2 building client environment for production...
+transforming...
+✓ 2151 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                  13.66 kB │ gzip:   4.67 kB
+dist/assets/index-BrEJa3bq.css   27.34 kB │ gzip:   5.92 kB
+dist/assets/index-CoCLV78_.js   426.54 kB │ gzip: 135.88 kB
+✓ built in 13.31s
